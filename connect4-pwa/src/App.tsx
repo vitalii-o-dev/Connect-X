@@ -1,35 +1,73 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import { useState } from "react";
+import {
+  Button,
+  VStack,
+  Center,
+  useDisclosure,
+  Modal,
+  ModalOverlay,
+  ModalContent,
+  ModalHeader,
+  ModalCloseButton,
+  ModalBody,
+  ModalFooter,
+  Input,
+  Heading,
+} from "@chakra-ui/react";
 
 function App() {
-  const [count, setCount] = useState(0)
+  const { isOpen, onOpen, onClose } = useDisclosure();
+  const [player1, setPlayer1] = useState("");
+  const [player2, setPlayer2] = useState("");
+
+  const startGame = () => {
+    if (!player1 || !player2) return alert("Enter both names!");
+    console.log("Start game with:", player1, player2);
+    onClose();
+  };
 
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
+    <Center minH="100vh" bg="gray.50">
+      <VStack spacing={6}>
+        <Heading size="3xl" fontWeight="bold">
+          Connect-X
+        </Heading>
+
+        <Button colorScheme="blue" size="lg" onClick={onOpen}>
+          Play
+        </Button>
+      </VStack>
+
+      {/* Modal */}
+      <Modal isOpen={isOpen} onClose={onClose} isCentered>
+        <ModalOverlay />
+        <ModalContent>
+          <ModalHeader>Enter Player Names</ModalHeader>
+          <ModalCloseButton />
+          <ModalBody>
+            <VStack spacing={3}>
+              <Input
+                placeholder="Player 1"
+                value={player1}
+                onChange={(e) => setPlayer1(e.target.value)}
+              />
+              <Input
+                placeholder="Player 2"
+                value={player2}
+                onChange={(e) => setPlayer2(e.target.value)}
+              />
+            </VStack>
+          </ModalBody>
+
+          <ModalFooter>
+            <Button colorScheme="blue" onClick={startGame}>
+              Start Game
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+    </Center>
+  );
 }
 
-export default App
+export default App;
