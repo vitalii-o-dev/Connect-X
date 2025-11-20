@@ -14,17 +14,24 @@ import {
   Input,
   Heading,
 } from "@chakra-ui/react";
+import Game from "./Game";
 
 function App() {
   const { isOpen, onOpen, onClose } = useDisclosure();
   const [player1, setPlayer1] = useState("");
   const [player2, setPlayer2] = useState("");
+  const [gameStarted, setGameStarted] = useState(false);
 
   const startGame = () => {
     if (!player1 || !player2) return alert("Enter both names!");
-    console.log("Start game with:", player1, player2);
+    setGameStarted(true);   // <-- IMPORTANT
     onClose();
   };
+
+  // Show game after starting
+  if (gameStarted) {
+    return <Game player1={player1} player2={player2} />;
+  }
 
   return (
     <Center minH="100vh" bg="gray.50">

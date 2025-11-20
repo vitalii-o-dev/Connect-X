@@ -1,13 +1,21 @@
 import React from "react";
-import { createRoot } from "react-dom/client";
+import ReactDOM from "react-dom/client";
 import { ChakraProvider } from "@chakra-ui/react";
-import App from "./App";
-import './index.css';
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 
-createRoot(document.getElementById("root")!).render(
+import App from "./App";
+import Game from "./Game";
+import "./index.css";
+
+ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    <ChakraProvider resetCSS={false}>
-      <App />
+    <ChakraProvider>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/" element={<App />} />
+          <Route path="/game" element={<Game />} />
+        </Routes>
+      </BrowserRouter>
     </ChakraProvider>
   </React.StrictMode>
 );
