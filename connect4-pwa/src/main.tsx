@@ -4,7 +4,6 @@ import { ChakraProvider } from "@chakra-ui/react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 
 import App from "./App";
-import Game from "./Game";
 import "./index.css";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
@@ -13,9 +12,20 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<App />} />
-          <Route path="/game" element={<Game />} />
+          <Route path="*" element={<App />} />
         </Routes>
       </BrowserRouter>
     </ChakraProvider>
   </React.StrictMode>
 );
+
+// Register service worker in production builds
+if ("serviceWorker" in navigator && import.meta.env.PROD) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker
+      .register("/service-worker.js")
+      .catch((err) => {
+        console.error("Service worker registration failed:", err);
+      });
+  });
+}
