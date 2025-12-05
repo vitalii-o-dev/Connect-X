@@ -15,6 +15,7 @@ import {
   ModalBody,
   ModalFooter,
   useDisclosure,
+  Spinner,
 } from "@chakra-ui/react";
 
 type GameProps = {
@@ -30,72 +31,56 @@ export default function Game({ player1, player2 }: GameProps) {
     Array.from({ length: ROWS }, () => Array(COLS).fill(""))
   );
   const [current, setCurrent] = useState<"red" | "yellow">("red");
+  const [scores, setScores] = useState({ red: 0, yellow: 0 });
 
   const { isOpen, onOpen, onClose } = useDisclosure();
   const [winner, setWinner] = useState<string>("");
+  const [isProcessing, setIsProcessing] = useState(false);
 
-  // ------------ WIN CHECKING ------------
-  const checkWin = (board: string[][]): string | null => {
-    const directions = [
-      [0, 1], // horizontal
-      [1, 0], // vertical
-      [1, 1], // diagonal down-right
-      [1, -1], // diagonal down-left
-    ];
+  // ------------ HANDLE MOVE (REST API) ------------
+  const dropPiece = async (col: number) => {
+    if (isProcessing || winner) return; // Prevent moves while processing or if game is over
 
-    for (let r = 0; r < ROWS; r++) {
-      for (let c = 0; c < COLS; c++) {
-        const color = board[r][c];
-        if (!color) continue;
+    setIsProcessing(true);
+    try {
+      const response = await fetch("/api/game/move", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          matrix: board,
+          currentPlayer: current,
+          column: col,
+        }),
+      });
 
-        for (const [dr, dc] of directions) {
-          let streak = 1;
-
-          for (let k = 1; k < 4; k++) {
-            const nr = r + dr * k;
-            const nc = c + dc * k;
-
-            if (
-              nr < 0 ||
-              nr >= ROWS ||
-              nc < 0 ||
-              nc >= COLS ||
-              board[nr][nc] !== color
-            ) {
-              break;
-            }
-
-            streak++;
-          }
-
-          if (streak === 4) return color;
-        }
+      if (!response.ok) {
+        const errorData = await response.json();
+        alert(errorData.error || "Failed to process move");
+        setIsProcessing(false);
+        return;
       }
-    }
-    return null;
-  };
 
-  // ------------ HANDLE MOVE ------------
-  const dropPiece = (col: number) => {
-    const newBoard = board.map((row) => [...row]);
+      const data = await response.json();
+      
+      // Update board with the new matrix from backend
+      setBoard(data.matrix);
 
-    for (let row = ROWS - 1; row >= 0; row--) {
-      if (!newBoard[row][col]) {
-        newBoard[row][col] = current;
-        break;
+      // Update scores
+      if (data.scores) {
+        setScores((prevScores) => ({
+          red: prevScores.red + (data.scores.red || 0),
+          yellow: prevScores.yellow + (data.scores.yellow || 0),
+        }));
       }
-    }
 
-    const win = checkWin(newBoard);
-    if (win) {
-      setWinner(win === "red" ? player1 : player2);
-      setBoard(newBoard);
-      onOpen();
-      return;
+      // Switch turns
+      setCurrent(current === "red" ? "yellow" : "red");
+    } catch (error) {
+      console.error("Failed to process move:", error);
+      alert("Failed to process move. Please try again.");
+    } finally {
+      setIsProcessing(false);
     }
-
-    setBoard(newBoard);
-    setCurrent(current === "red" ? "yellow" : "red");
   };
 
   // ------------ RESTART (same players) ------------
@@ -103,6 +88,7 @@ export default function Game({ player1, player2 }: GameProps) {
     setBoard(Array.from({ length: ROWS }, () => Array(COLS).fill("")));
     setCurrent("red");
     setWinner("");
+    setScores({ red: 0, yellow: 0 });
     onClose();
   };
 
@@ -111,9 +97,12 @@ export default function Game({ player1, player2 }: GameProps) {
       <VStack spacing={6}>
         <Text fontSize="5xl" fontWeight="bold">Connect-X</Text>
 
-        <Text fontSize="2xl" fontWeight="semibold">
-          Turn: {current === "red" ? player1 : player2}
-        </Text>
+        <HStack spacing={4}>
+          <Text fontSize="2xl" fontWeight="semibold">
+            Turn: {current === "red" ? player1 : player2}
+          </Text>
+          {isProcessing && <Spinner size="sm" />}
+        </HStack>
 
         <HStack spacing={12}>
           {/* Player 1 */}
@@ -127,6 +116,9 @@ export default function Game({ player1, player2 }: GameProps) {
               border="4px solid white"
             />
             <Text fontSize="lg" color="red.500">{player1}</Text>
+            <Text fontSize="2xl" fontWeight="bold" color="red.600">
+              Score: {scores.red}
+            </Text>
           </VStack>
 
           {/* GAME BOARD */}
@@ -146,10 +138,11 @@ export default function Game({ player1, player2 }: GameProps) {
                     bg={cell === "red" ? "red.400" : cell === "yellow" ? "yellow.300" : "white"}
                     borderRadius="full"
                     border="4px solid white"
-                    cursor="pointer"
+                    cursor={isProcessing || winner ? "not-allowed" : "pointer"}
                     onClick={() => dropPiece(cIndex)}
                     transition="0.2s"
-                    _hover={{ transform: "scale(1.05)" }}
+                    opacity={isProcessing ? 0.6 : 1}
+                    _hover={!isProcessing && !winner ? { transform: "scale(1.05)" } : {}}
                   />
                 ))
               )}
@@ -167,6 +160,9 @@ export default function Game({ player1, player2 }: GameProps) {
               border="4px solid white"
             />
             <Text fontSize="lg" color="yellow.600">{player2}</Text>
+            <Text fontSize="2xl" fontWeight="bold" color="yellow.600">
+              Score: {scores.yellow}
+            </Text>
           </VStack>
         </HStack>
 
