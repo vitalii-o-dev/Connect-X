@@ -8,9 +8,10 @@ const ASSETS_TO_CACHE = [
 
 const ROWS = 6;
 const COLS = 7;
+const CONNECT_TARGET = 4;
 
 // ------------ FIND AND REMOVE ROWS OF 4 ------------
-function findRowsOf4(board) {
+function findRowsOf4(board, target = CONNECT_TARGET) {
   const directions = [
     [0, 1], // horizontal
     [1, 0], // vertical
@@ -30,7 +31,7 @@ function findRowsOf4(board) {
         let streak = 1;
         const streakCells = [[r, c]];
 
-        for (let k = 1; k < 4; k++) {
+        for (let k = 1; k < target; k++) {
           const nr = r + dr * k;
           const nc = c + dc * k;
 
@@ -48,7 +49,7 @@ function findRowsOf4(board) {
           streakCells.push([nr, nc]);
         }
 
-        if (streak === 4) {
+        if (streak === target) {
           // Mark all 4 cells for removal
           streakCells.forEach(([row, col]) => {
             cellsToRemove.add(`${row},${col}`);
@@ -93,13 +94,13 @@ function removeCellsAndFall(board, cellsToRemove) {
 }
 
 // Process board until no more rows of 4 exist
-function processBoardUntilStable(board) {
+function processBoardUntilStable(board, target = CONNECT_TARGET) {
   let currentBoard = board.map((row) => [...row]);
   let totalScores = { red: 0, yellow: 0 };
   let changed = true;
 
   while (changed) {
-    const { cellsToRemove, playerScores } = findRowsOf4(currentBoard);
+    const { cellsToRemove, playerScores } = findRowsOf4(currentBoard, target);
     
     if (cellsToRemove.size === 0) {
       changed = false;
@@ -130,6 +131,34 @@ function processMove(board, column, currentPlayer) {
   }
 
   return newBoard;
+}
+
+function checkWinner(matrix, row, col, player, target = CONNECT_TARGET) {
+  const directions = [
+    [0, 1],
+    [1, 0],
+    [1, 1],
+    [1, -1],
+  ];
+
+  const inBounds = (r, c) => r >= 0 && r < ROWS && c >= 0 && c < COLS;
+
+  const countInDirection = (dr, dc) => {
+    let r = row + dr;
+    let c = col + dc;
+    let count = 0;
+    while (inBounds(r, c) && matrix[r][c] === player) {
+      count += 1;
+      r += dr;
+      c += dc;
+    }
+    return count;
+  };
+
+  return directions.some(([dr, dc]) => {
+    const total = 1 + countInDirection(dr, dc) + countInDirection(-dr, -dc);
+    return total >= target;
+  });
 }
 
 async function handleGameMove(request) {
@@ -185,6 +214,66 @@ async function handleGameMove(request) {
   }
 }
 
+async function handleGame2Move(request) {
+  try {
+    const { matrix, currentPlayer, column, connectTarget } = await request.json();
+    const target = connectTarget || CONNECT_TARGET;
+
+    // Basic validation
+    if (!matrix || !currentPlayer || column === undefined) {
+      return new Response(
+        JSON.stringify({ error: 'Missing required fields: matrix, currentPlayer, column' }),
+        { status: 400, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (column < 0 || column >= COLS) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid column' }),
+        { status: 400, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (matrix[0][column]) {
+      return new Response(
+        JSON.stringify({ error: 'Column is full' }),
+        { status: 400, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const newBoard = matrix.map((row) => [...row]);
+    let placedRow = -1;
+    for (let row = ROWS - 1; row >= 0; row--) {
+      if (!newBoard[row][column]) {
+        newBoard[row][column] = currentPlayer;
+        placedRow = row;
+        break;
+      }
+    }
+
+    const hasWinner =
+      placedRow >= 0 ? checkWinner(newBoard, placedRow, column, currentPlayer, target) : false;
+
+    return new Response(
+      JSON.stringify({
+        matrix: newBoard,
+        scores: { red: 0, yellow: 0 },
+        winnerColor: hasWinner ? currentPlayer : null,
+        hasWinner,
+      }),
+      { headers: { 'Content-Type': 'application/json' } },
+    );
+  } catch (error) {
+    return new Response(
+      JSON.stringify({ error: 'Failed to process move', scores: { red: 0, yellow: 0 } }),
+      {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' },
+      },
+    );
+  }
+}
+
 self.addEventListener('install', (event) => {
   self.skipWaiting(); // Force immediate activation
   event.waitUntil(
@@ -216,6 +305,11 @@ self.addEventListener('fetch', (event) => {
     if (url.pathname === '/api/game/move') {
       console.log('Service worker intercepting POST to /api/game/move');
       event.respondWith(handleGameMove(request));
+      return;
+    }
+    if (url.pathname === '/api/game2/move') {
+      console.log('Service worker intercepting POST to /api/game2/move');
+      event.respondWith(handleGame2Move(request));
       return;
     }
   }
