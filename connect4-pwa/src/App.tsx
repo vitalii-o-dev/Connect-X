@@ -13,24 +13,36 @@ import {
   ModalFooter,
   Input,
   Heading,
+  HStack,
 } from "@chakra-ui/react";
 import Game from "./Game";
+import Game2 from "./Game2";
 
 function App() {
   const { isOpen, onOpen, onClose } = useDisclosure();
   const [player1, setPlayer1] = useState("");
   const [player2, setPlayer2] = useState("");
   const [gameStarted, setGameStarted] = useState(false);
+  const [selectedGame, setSelectedGame] = useState<"game1" | "game2" | null>(null);
 
   const startGame = () => {
     if (!player1 || !player2) return alert("Enter both names!");
-    setGameStarted(true);   // <-- IMPORTANT
+    setGameStarted(true);
     onClose();
   };
 
+  const handleGameSelection = (game: "game1" | "game2") => {
+    setSelectedGame(game);
+    onOpen();
+  };
+
   // Show game after starting
-  if (gameStarted) {
+  if (gameStarted && selectedGame === "game1") {
     return <Game player1={player1} player2={player2} />;
+  }
+
+  if (gameStarted && selectedGame === "game2") {
+    return <Game2 player1={player1} player2={player2} />;
   }
 
   return (
@@ -40,9 +52,14 @@ function App() {
           Connect-X
         </Heading>
 
-        <Button colorScheme="blue" size="lg" onClick={onOpen}>
-          Play
-        </Button>
+        <HStack spacing={4}>
+          <Button colorScheme="blue" size="lg" onClick={() => handleGameSelection("game1")}>
+            Game 1
+          </Button>
+          <Button colorScheme="green" size="lg" onClick={() => handleGameSelection("game2")}>
+            Game 2
+          </Button>
+        </HStack>
       </VStack>
 
       {/* Modal */}
