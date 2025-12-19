@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Box,
   Center,
@@ -8,7 +8,18 @@ import {
   Button,
   HStack,
   Spinner,
+  Modal,
+  ModalOverlay,
+  ModalContent,
+  ModalHeader,
+  ModalCloseButton,
+  ModalBody,
+  ModalFooter,
+  useDisclosure,
+  Divider,
 } from "@chakra-ui/react";
+import { saveGameStats, getGameStatsForPlayers } from "./statistics";
+import type { GameStats } from "./statistics";
 
 type GameProps = {
   player1: string;
@@ -25,6 +36,9 @@ export default function Game2({ player1, player2 }: GameProps) {
   const [current, setCurrent] = useState<"red" | "yellow">("red");
   const [winner, setWinner] = useState<string>("");
   const [isProcessing, setIsProcessing] = useState(false);
+  const { isOpen: isStatsOpen, onOpen: onStatsOpen, onClose: onStatsClose } = useDisclosure();
+  const [gameHistory, setGameHistory] = useState<GameStats[]>([]);
+  const hasSavedStatsRef = useRef(false);
 
   // ------------ HANDLE MOVE (REST API) ------------
   const dropPiece = async (col: number) => {
@@ -64,7 +78,23 @@ export default function Game2({ player1, player2 }: GameProps) {
       if (data.hasWinner && data.winnerColor) {
         const winnerName = data.winnerColor === "red" ? player1 : player2;
         setWinner(winnerName);
-        // Don't open modal, just set winner - clicking board will restart
+        // Save statistics when game ends
+        if (!hasSavedStatsRef.current) {
+          const stats: GameStats = {
+            player1,
+            player2,
+            gameType: "game2",
+            timestamp: Date.now(),
+            winner: winnerName,
+          };
+          saveGameStats(stats);
+          hasSavedStatsRef.current = true;
+          // Update local history
+          const history = getGameStatsForPlayers(player1, player2, "game2");
+          setGameHistory(history);
+          // Show statistics modal
+          onStatsOpen();
+        }
       } else {
         // Switch turns if no winner
         setCurrent(current === "red" ? "yellow" : "red");
@@ -82,7 +112,15 @@ export default function Game2({ player1, player2 }: GameProps) {
     setBoard(Array.from({ length: ROWS }, () => Array(COLS).fill("")));
     setCurrent("red");
     setWinner("");
+    hasSavedStatsRef.current = false;
+    onStatsClose();
   };
+
+  // Load game history on mount
+  useEffect(() => {
+    const history = getGameStatsForPlayers(player1, player2, "game2");
+    setGameHistory(history);
+  }, [player1, player2, isStatsOpen]);
 
   return (
     <Center minH="100vh" bg="gray.50" p={8}>
@@ -167,6 +205,86 @@ export default function Game2({ player1, player2 }: GameProps) {
         </Button>
       </VStack>
 
+      {/* STATISTICS MODAL - Shows when game ends */}
+      <Modal isOpen={isStatsOpen} onClose={onStatsClose} isCentered size="lg">
+        <ModalOverlay />
+        <ModalContent>
+          <ModalHeader>📊 Game Statistics</ModalHeader>
+          <ModalCloseButton />
+          <ModalBody>
+            <VStack spacing={4} align="stretch">
+              {/* Current Game Result */}
+              {winner && (
+                <Box>
+                  <Text fontSize="xl" fontWeight="bold" mb={2}>
+                    Current Game Result
+                  </Text>
+                  <Text fontSize="2xl" textAlign="center" fontWeight="bold" color="green.600" p={3} bg="green.50" borderRadius="md">
+                    🎉 {winner} wins!
+                  </Text>
+                </Box>
+              )}
+
+              {/* Previous Games */}
+              {gameHistory.length > 0 && (
+                <>
+                  {winner && <Divider />}
+                  <Box>
+                    <Text fontSize="xl" fontWeight="bold" mb={2}>
+                      Previous Games ({gameHistory.length})
+                    </Text>
+                    <VStack spacing={2} align="stretch" maxH="300px" overflowY="auto">
+                      {gameHistory.slice().reverse().map((game, index) => {
+                        const isPlayer1Winner = game.winner === game.player1;
+                        return (
+                          <Box key={index} p={3} bg="gray.50" borderRadius="md">
+                            <HStack justify="space-between" mb={2}>
+                              <Text fontSize="sm" color="gray.600">
+                                Game {gameHistory.length - index} - {new Date(game.timestamp).toLocaleString()}
+                              </Text>
+                            </HStack>
+                            <HStack justify="space-between">
+                              <Text fontSize="sm" color={isPlayer1Winner ? "green.600" : "gray.600"} fontWeight={isPlayer1Winner ? "bold" : "normal"}>
+                                {game.player1}
+                              </Text>
+                              <Text fontSize="sm" fontWeight="bold" color={isPlayer1Winner ? "green.600" : "gray.400"}>
+                                {isPlayer1Winner ? "🏆 Winner" : "—"}
+                              </Text>
+                            </HStack>
+                            <HStack justify="space-between" mt={1}>
+                              <Text fontSize="sm" color={!isPlayer1Winner ? "green.600" : "gray.600"} fontWeight={!isPlayer1Winner ? "bold" : "normal"}>
+                                {game.player2}
+                              </Text>
+                              <Text fontSize="sm" fontWeight="bold" color={!isPlayer1Winner ? "green.600" : "gray.400"}>
+                                {!isPlayer1Winner ? "🏆 Winner" : "—"}
+                              </Text>
+                            </HStack>
+                          </Box>
+                        );
+                      })}
+                    </VStack>
+                  </Box>
+                </>
+              )}
+
+              {gameHistory.length === 0 && !winner && (
+                <Text color="gray.500" textAlign="center" py={4}>
+                  No previous games recorded
+                </Text>
+              )}
+            </VStack>
+          </ModalBody>
+
+          <ModalFooter>
+            <Button colorScheme="green" mr={3} onClick={restartMatch}>
+              Restart Match
+            </Button>
+            <Button colorScheme="blue" onClick={onStatsClose}>
+              Close
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
     </Center>
   );
 }
