@@ -4,6 +4,8 @@ const ASSETS_TO_CACHE = [
   '/index.html',
   '/manifest.webmanifest',
   '/vite.svg',
+  '/icon.svg',
+  '/service-worker.js',
 ];
 
 const ROWS = 6;
@@ -194,10 +196,12 @@ async function handleGameMove(request) {
     // Process board: remove rows of 4, make pieces fall, calculate scores
     const { board: finalMatrix, scores } = processBoardUntilStable(newMatrix);
 
+    const boardFull = finalMatrix[0].every((cell) => cell !== '');
     return new Response(
       JSON.stringify({
         matrix: finalMatrix,
         scores: scores,
+        boardFull,
       }),
       {
         headers: { 'Content-Type': 'application/json' },
@@ -254,12 +258,14 @@ async function handleGame2Move(request) {
     const hasWinner =
       placedRow >= 0 ? checkWinner(newBoard, placedRow, column, currentPlayer, target) : false;
 
+    const boardFull = newBoard[0].every((cell) => cell !== '');
     return new Response(
       JSON.stringify({
         matrix: newBoard,
         scores: { red: 0, yellow: 0 },
         winnerColor: hasWinner ? currentPlayer : null,
         hasWinner,
+        boardFull,
       }),
       { headers: { 'Content-Type': 'application/json' } },
     );

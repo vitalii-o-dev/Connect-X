@@ -19,14 +19,14 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
   </React.StrictMode>
 );
 
-// Register service worker (works in both dev and production)
-if ("serviceWorker" in navigator) {
+// Register service worker only in production builds to avoid dev/preview inconsistencies
+if (import.meta.env.PROD && "serviceWorker" in navigator) {
   window.addEventListener("load", () => {
     navigator.serviceWorker
       .register("/service-worker.js")
       .then((registration) => {
         console.log("Service worker registered:", registration.scope);
-        
+
         // Check if there's an updated service worker
         registration.addEventListener("updatefound", () => {
           const newWorker = registration.installing;
@@ -43,7 +43,7 @@ if ("serviceWorker" in navigator) {
       .catch((err) => {
         console.error("Service worker registration failed:", err);
       });
-    
+
     // Reload page when new service worker takes control
     let refreshing = false;
     navigator.serviceWorker.addEventListener("controllerchange", () => {
