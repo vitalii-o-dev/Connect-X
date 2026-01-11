@@ -99,6 +99,24 @@ export default function Game2({ player1, player2 }: GameProps) {
         // Switch turns if no winner
         setCurrent(current === "red" ? "yellow" : "red");
       }
+
+      // If backend indicates board is full and there's no winner, treat as draw: save stats and open modal
+      const boardFull = data.boardFull ?? (data.matrix && data.matrix[0] ? data.matrix[0].every((cell: any) => cell !== '') : false);
+      if (!data.hasWinner && boardFull && !hasSavedStatsRef.current) {
+        setWinner("Draw"); // Set winner to "Draw" to stop accepting moves
+        const stats: GameStats = {
+          player1,
+          player2,
+          gameType: "game2",
+          timestamp: Date.now(),
+          // No winner field means it's a draw
+        };
+        saveGameStats(stats);
+        hasSavedStatsRef.current = true;
+        const history = getGameStatsForPlayers(player1, player2, "game2");
+        setGameHistory(history);
+        onStatsOpen();
+      }
     } catch (error) {
       console.error("Failed to process move:", error);
       alert("Failed to process move. Please try again.");
@@ -129,8 +147,8 @@ export default function Game2({ player1, player2 }: GameProps) {
 
         <HStack spacing={4}>
           {winner ? (
-            <Text fontSize="2xl" fontWeight="bold" color="green.500">
-              {winner} wins! Click anywhere on the board to restart
+            <Text fontSize="2xl" fontWeight="bold" color={winner === "Draw" ? "gray.500" : "green.500"}>
+              {winner === "Draw" ? "🤝 It's a Draw! Click anywhere on the board to restart" : `${winner} wins! Click anywhere on the board to restart`}
             </Text>
           ) : (
             <>
@@ -219,9 +237,15 @@ export default function Game2({ player1, player2 }: GameProps) {
                   <Text fontSize="xl" fontWeight="bold" mb={2}>
                     Current Game Result
                   </Text>
-                  <Text fontSize="2xl" textAlign="center" fontWeight="bold" color="green.600" p={3} bg="green.50" borderRadius="md">
-                    🎉 {winner} wins!
-                  </Text>
+                  {winner === "Draw" ? (
+                    <Text fontSize="2xl" textAlign="center" fontWeight="bold" color="gray.600" p={3} bg="gray.50" borderRadius="md">
+                      🤝 Draw
+                    </Text>
+                  ) : (
+                    <Text fontSize="2xl" textAlign="center" fontWeight="bold" color="green.600" p={3} bg="green.50" borderRadius="md">
+                      🎉 {winner} wins!
+                    </Text>
+                  )}
                 </Box>
               )}
 
@@ -236,6 +260,8 @@ export default function Game2({ player1, player2 }: GameProps) {
                     <VStack spacing={2} align="stretch" maxH="300px" overflowY="auto">
                       {gameHistory.slice().reverse().map((game, index) => {
                         const isPlayer1Winner = game.winner === game.player1;
+                        const isPlayer2Winner = game.winner === game.player2;
+                        const isDraw = !game.winner;
                         return (
                           <Box key={index} p={3} bg="gray.50" borderRadius="md">
                             <HStack justify="space-between" mb={2}>
@@ -243,6 +269,13 @@ export default function Game2({ player1, player2 }: GameProps) {
                                 Game {gameHistory.length - index} - {new Date(game.timestamp).toLocaleString()}
                               </Text>
                             </HStack>
+
+                            {isDraw && (
+                              <Text textAlign="center" color="gray.600" mb={2}>
+                                Draw
+                              </Text>
+                            )}
+
                             <HStack justify="space-between">
                               <Text fontSize="sm" color={isPlayer1Winner ? "green.600" : "gray.600"} fontWeight={isPlayer1Winner ? "bold" : "normal"}>
                                 {game.player1}
@@ -252,11 +285,11 @@ export default function Game2({ player1, player2 }: GameProps) {
                               </Text>
                             </HStack>
                             <HStack justify="space-between" mt={1}>
-                              <Text fontSize="sm" color={!isPlayer1Winner ? "green.600" : "gray.600"} fontWeight={!isPlayer1Winner ? "bold" : "normal"}>
+                              <Text fontSize="sm" color={isPlayer2Winner ? "green.600" : "gray.600"} fontWeight={isPlayer2Winner ? "bold" : "normal"}>
                                 {game.player2}
                               </Text>
-                              <Text fontSize="sm" fontWeight="bold" color={!isPlayer1Winner ? "green.600" : "gray.400"}>
-                                {!isPlayer1Winner ? "🏆 Winner" : "—"}
+                              <Text fontSize="sm" fontWeight="bold" color={isPlayer2Winner ? "green.600" : "gray.400"}>
+                                {isPlayer2Winner ? "🏆 Winner" : "—"}
                               </Text>
                             </HStack>
                           </Box>

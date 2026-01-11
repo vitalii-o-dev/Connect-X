@@ -13,7 +13,6 @@ import {
   ModalFooter,
   Input,
   Heading,
-  HStack,
 } from "@chakra-ui/react";
 import Game from "./Game";
 import Game2 from "./Game2";
@@ -23,26 +22,21 @@ function App() {
   const [player1, setPlayer1] = useState("");
   const [player2, setPlayer2] = useState("");
   const [gameStarted, setGameStarted] = useState(false);
-  const [selectedGame, setSelectedGame] = useState<"game1" | "game2" | null>(null);
+  const [selectedGame, setSelectedGame] = useState<"game1" | "game2">("game1");
 
   const startGame = () => {
     if (!player1 || !player2) return alert("Enter both names!");
-    setGameStarted(true);
+    setGameStarted(true);   // <-- IMPORTANT
     onClose();
   };
 
-  const handleGameSelection = (game: "game1" | "game2") => {
-    setSelectedGame(game);
-    onOpen();
-  };
-
   // Show game after starting
-  if (gameStarted && selectedGame === "game1") {
-    return <Game player1={player1} player2={player2} />;
-  }
-
-  if (gameStarted && selectedGame === "game2") {
-    return <Game2 player1={player1} player2={player2} />;
+  if (gameStarted) {
+    return selectedGame === "game1" ? (
+      <Game player1={player1} player2={player2} />
+    ) : (
+      <Game2 player1={player1} player2={player2} />
+    );
   }
 
   return (
@@ -52,14 +46,12 @@ function App() {
           Connect-X
         </Heading>
 
-        <HStack spacing={4}>
-          <Button colorScheme="blue" size="lg" onClick={() => handleGameSelection("game1")}>
-            Game 1
-          </Button>
-          <Button colorScheme="green" size="lg" onClick={() => handleGameSelection("game2")}>
-            Game 2
-          </Button>
-        </HStack>
+        <Button colorScheme="blue" size="lg" onClick={() => { setSelectedGame("game1"); onOpen(); }}>
+          Play (Game 1)
+        </Button>
+        <Button colorScheme="teal" size="lg" onClick={() => { setSelectedGame("game2"); onOpen(); }}>
+          Play (Game 2)
+        </Button>
       </VStack>
 
       {/* Modal */}

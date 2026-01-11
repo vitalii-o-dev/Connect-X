@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import {
   Box,
   Center,
@@ -16,10 +16,7 @@ import {
   ModalFooter,
   useDisclosure,
   Spinner,
-  Divider,
 } from "@chakra-ui/react";
-import { saveGameStats, getGameStatsForPlayers } from "./statistics";
-import type { GameStats } from "./statistics";
 
 type GameProps = {
   player1: string;
@@ -37,11 +34,8 @@ export default function Game({ player1, player2 }: GameProps) {
   const [scores, setScores] = useState({ red: 0, yellow: 0 });
 
   const { isOpen, onOpen, onClose } = useDisclosure();
-  const { isOpen: isStatsOpen, onOpen: onStatsOpen, onClose: onStatsClose } = useDisclosure();
   const [winner, setWinner] = useState<string>("");
   const [isProcessing, setIsProcessing] = useState(false);
-  const [gameHistory, setGameHistory] = useState<GameStats[]>([]);
-  const hasSavedStatsRef = useRef(false);
 
   // ------------ HANDLE MOVE (REST API) ------------
   const dropPiece = async (col: number) => {
@@ -89,80 +83,25 @@ export default function Game({ player1, player2 }: GameProps) {
     }
   };
 
-  // ------------ CHECK IF BOARD IS FULL ------------
-  const isBoardFull = () => {
-    return board[0].every((cell) => cell !== "");
-  };
-
-  // ------------ SAVE STATISTICS WHEN GAME ENDS ------------
-  const saveCurrentGameStats = () => {
-    const stats: GameStats = {
-      player1,
-      player2,
-      gameType: "game1",
-      timestamp: Date.now(),
-      player1Score: scores.red,
-      player2Score: scores.yellow,
-    };
-    saveGameStats(stats);
-    // Update local history
-    const history = getGameStatsForPlayers(player1, player2, "game1");
-    setGameHistory(history);
-  };
-
-  // ------------ RESTART (same players) ------------
-  const restartMatch = () => {
-    // Save stats before resetting if there were scores and stats haven't been saved
-    if ((scores.red > 0 || scores.yellow > 0) && !hasSavedStatsRef.current) {
-      saveCurrentGameStats();
-      hasSavedStatsRef.current = true;
-      // Show statistics modal
-      onStatsOpen();
-      return; // Don't reset yet, let user see stats first
-    }
-    // Reset the game
-    setBoard(Array.from({ length: ROWS }, () => Array(COLS).fill("")));
-    setCurrent("red");
-    setWinner("");
-    setScores({ red: 0, yellow: 0 });
-    hasSavedStatsRef.current = false;
-    onClose();
-    onStatsClose();
-  };
-
-  // Check for board full condition after each move
+  // If board becomes full and there is no score/winner, treat as a draw and end the game
   useEffect(() => {
     if (!board || !board[0]) return;
     const boardFull = board[0].every((cell) => cell !== "");
-    if (boardFull && !winner && !hasSavedStatsRef.current && (scores.red > 0 || scores.yellow > 0)) {
-      // Board is full, game ends - save stats and show statistics
-      const stats: GameStats = {
-        player1,
-        player2,
-        gameType: "game1",
-        timestamp: Date.now(),
-        player1Score: scores.red,
-        player2Score: scores.yellow,
-      };
-      saveGameStats(stats);
-      hasSavedStatsRef.current = true;
-      const history = getGameStatsForPlayers(player1, player2, "game1");
-      setGameHistory(history);
-      onStatsOpen();
+    if (boardFull && !winner) {
+      setWinner("Draw");
+      onOpen();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [board]);
 
-  // Load game history on mount and when stats are saved
-  useEffect(() => {
-    try {
-      const history = getGameStatsForPlayers(player1, player2, "game1");
-      setGameHistory(history);
-    } catch (error) {
-      console.error("Failed to load game history:", error);
-      setGameHistory([]);
-    }
-  }, [player1, player2, isStatsOpen]);
+  // ------------ RESTART (same players) ------------
+  const restartMatch = () => {
+    setBoard(Array.from({ length: ROWS }, () => Array(COLS).fill("")));
+    setCurrent("red");
+    setWinner("");
+    setScores({ red: 0, yellow: 0 });
+    onClose();
+  };
 
   return (
     <Center minH="100vh" bg="gray.50" p={8}>
@@ -262,79 +201,6 @@ export default function Game({ player1, player2 }: GameProps) {
             </Button>
             <Button variant="outline" onClick={() => window.location.reload()}>
               New Game
-            </Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
-
-      {/* STATISTICS MODAL - Shows when game ends */}
-      <Modal isOpen={isStatsOpen} onClose={onStatsClose} isCentered size="lg">
-        <ModalOverlay />
-        <ModalContent>
-          <ModalHeader>📊 Game Statistics</ModalHeader>
-          <ModalCloseButton />
-          <ModalBody>
-            <VStack spacing={4} align="stretch">
-              {/* Current Game Score */}
-              <Box>
-                <Text fontSize="xl" fontWeight="bold" mb={2}>
-                  Current Game Score
-                </Text>
-                <HStack justify="space-between" p={3} bg="gray.50" borderRadius="md">
-                  <Text fontWeight="semibold" color="red.600">{player1}:</Text>
-                  <Text fontSize="lg" fontWeight="bold">{scores.red}</Text>
-                </HStack>
-                <HStack justify="space-between" p={3} bg="gray.50" borderRadius="md" mt={2}>
-                  <Text fontWeight="semibold" color="yellow.600">{player2}:</Text>
-                  <Text fontSize="lg" fontWeight="bold">{scores.yellow}</Text>
-                </HStack>
-              </Box>
-
-              {/* Previous Games */}
-              {gameHistory.length > 0 && (
-                <>
-                  <Divider />
-                  <Box>
-                    <Text fontSize="xl" fontWeight="bold" mb={2}>
-                      Previous Games ({gameHistory.length})
-                    </Text>
-                    <VStack spacing={2} align="stretch" maxH="300px" overflowY="auto">
-                      {gameHistory.slice().reverse().map((game, index) => (
-                        <Box key={index} p={3} bg="gray.50" borderRadius="md">
-                          <HStack justify="space-between" mb={1}>
-                            <Text fontSize="sm" color="gray.600">
-                              Game {gameHistory.length - index} - {new Date(game.timestamp).toLocaleString()}
-                            </Text>
-                          </HStack>
-                          <HStack justify="space-between">
-                            <Text fontSize="sm" color="red.600">{game.player1}:</Text>
-                            <Text fontWeight="bold">{game.player1Score || 0}</Text>
-                          </HStack>
-                          <HStack justify="space-between">
-                            <Text fontSize="sm" color="yellow.600">{game.player2}:</Text>
-                            <Text fontWeight="bold">{game.player2Score || 0}</Text>
-                          </HStack>
-                        </Box>
-                      ))}
-                    </VStack>
-                  </Box>
-                </>
-              )}
-
-              {gameHistory.length === 0 && (
-                <Text color="gray.500" textAlign="center" py={4}>
-                  No previous games recorded
-                </Text>
-              )}
-            </VStack>
-          </ModalBody>
-
-          <ModalFooter>
-            <Button colorScheme="green" mr={3} onClick={restartMatch}>
-              Restart Match
-            </Button>
-            <Button colorScheme="blue" onClick={onStatsClose}>
-              Close
             </Button>
           </ModalFooter>
         </ModalContent>

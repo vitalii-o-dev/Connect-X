@@ -19,8 +19,8 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
   </React.StrictMode>
 );
 
-// Register service worker only in production builds to avoid dev/preview inconsistencies
-if (import.meta.env.PROD && "serviceWorker" in navigator) {
+// Register service worker (needed for API endpoints in both dev and production)
+if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
     navigator.serviceWorker
       .register("/service-worker.js")
