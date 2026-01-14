@@ -16,7 +16,7 @@ game should be available for use from mobile phones.
 After the game stops, it should show a score of both players, and ability to start again/ go to the main menu.
 In the main menu, the button play should be changed to play_v1. There should be added a button play_v2. which adds another type of the game connect_X. Whoever connects 4 cells in a row wins, and the game finishes.
 
-
+site deployed on : https://connect-x-game.netlify.app
 
 <img width="432" height="379" alt="Screenshot 2025-11-07 at 17 39 45" src="https://github.com/user-attachments/assets/4f8028c3-6978-45f9-ae5f-dc62e9307e1a" />
 
